@@ -4,52 +4,109 @@
   <meta charset="UTF-8">
   <title>Google Sheet Form</title>
   <style>
-    body {
-      font-family: Arial;
-      max-width: 400px;
-      margin: 40px auto;
-    }
-    input, textarea, button {
-      width: 100%;
-      margin: 6px 0;
-      padding: 8px;
-    }
-    #success {
-      color: green;
-      display: none;
-      margin-top: 10px;
-    }
+    body { font-family: Arial; max-width: 500px; margin: 40px auto; }
+    input, textarea, button { width: 100%; margin: 6px 0; padding: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    th { background: #f2f2f2; }
+    #success { color: green; display: none; margin-top: 10px; }
+    button.delete-btn { background: #ff4d4d; color: white; border: none; cursor: pointer; padding: 4px 8px; }
+    button.delete-btn:hover { background: #e60000; }
   </style>
 </head>
 <body>
 
 <h2>Add Record</h2>
 
-<!-- 🔒 Hidden iframe -->
+<!-- Hidden iframe for form submission -->
 <iframe name="hiddenFrame" style="display:none;"></iframe>
 
 <form 
-  action="https://script.google.com/macros/s/AKfycby-77KvaLWpH3ZRtkfXL0ZxYtal3IvnWBAM4W47VJA4eO0k2GUu655gfNMRpsLEEVoziQ/exec"
+  action="https://script.google.com/macros/s/AKfycbwZjV2ILovwOlo5KWN0cihjndFNzH0kRoMyIRHQOGUleCZPs5bxwryiNgyJIGNzLSscfg/exec"
   method="POST"
   target="hiddenFrame"
-  onsubmit="handleSubmit()">
-
+  onsubmit="handleSubmit()"
+>
   <input name="name" placeholder="Name" required>
   <input name="email" placeholder="Email" required>
   <textarea name="message" placeholder="Message" required></textarea>
-
   <button type="submit">Submit</button>
 </form>
 
 <div id="success">✅ Data saved successfully</div>
 
+<h3>Saved Records</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Message</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody id="dataBody"></tbody>
+</table>
+
 <script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZjV2ILovwOlo5KWN0cihjndFNzH0kRoMyIRHQOGUleCZPs5bxwryiNgyJIGNzLSscfg/exec";
+
+// Called when form is submitted
 function handleSubmit() {
   document.getElementById("success").style.display = "block";
   setTimeout(() => {
     document.querySelector("form").reset();
-  }, 500);
+    loadData(); // refresh table after submit
+  }, 800);
 }
+
+// Load data using JSONP
+function loadData() {
+  const oldScript = document.getElementById("dataScript");
+  if (oldScript) oldScript.remove();
+
+  const script = document.createElement("script");
+  script.id = "dataScript";
+  script.src = SCRIPT_URL + "?callback=renderData&_=" + new Date().getTime();
+  document.body.appendChild(script);
+}
+
+// Render table with delete buttons
+function renderData(data) {
+  const tbody = document.getElementById("dataBody");
+  tbody.innerHTML = "";
+  data.reverse().forEach(row => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${row.name}</td>
+        <td>${row.email}</td>
+        <td>${row.message}</td>
+        <td><button class="delete-btn" onclick="deleteRecord(${row.index})">Delete</button></td>
+      </tr>
+    `;
+  });
+}
+
+// Delete record with confirmation
+function deleteRecord(rowIndex) {
+  if (!confirm("Are you sure you want to delete this record?")) return;
+
+  const oldScript = document.getElementById("deleteScript");
+  if (oldScript) oldScript.remove();
+
+  const script = document.createElement("script");
+  script.id = "deleteScript";
+  script.src = SCRIPT_URL + "?action=delete&index=" + rowIndex + "&callback=refreshData&_=" + new Date().getTime();
+  document.body.appendChild(script);
+}
+
+// Callback after deletion to reload table
+function refreshData() {
+  loadData();
+}
+
+// Load data on page load
+loadData();
 </script>
 
 </body>
